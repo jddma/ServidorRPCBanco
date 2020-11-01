@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -13,8 +14,8 @@ import (
 	"os"
 	"strings"
 
-
 	"github.com/dgrijalva/jwt-go"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type Central struct {
@@ -22,6 +23,7 @@ type Central struct {
 	tokensKey []byte
 }
 
+//Método para generar el token para la sucursal
 func (c * Central) generateKeyJWT()  {
 
 	var key [32]byte
@@ -70,6 +72,7 @@ func (c *Central) registerNewSubsidiary()  {
 
 }
 
+//Método para opciones del usuario del servidor
 func (c *Central) userOptions()  {
 
 	active := true
@@ -86,7 +89,8 @@ func (c *Central) userOptions()  {
 			break
 
 		case 2:
-			active = false
+			var test *bool
+			c.DeleteAccount("{\"document\": \"1000603860\"}", test)
 			break
 
 		}
@@ -94,12 +98,72 @@ func (c *Central) userOptions()  {
 
 }
 
-func (c *Central) GetBalance(operationData string, response *bool) error {
+//Método para decodificar la información de las operaciones en fomato JSON
+func (c *Central) decodeOperationData(operationData string) map[string]string {
+
+	var result map[string]string
+
+	err := json.Unmarshal([]byte(operationData), &result)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return result
+
+}
+
+//Método para eliminar una cuenta
+func (c *Central) DeleteAccount(operationData string, response *bool) error {
+
+	operationDataMap := c.decodeOperationData(operationData)
+
+	filter := bson.D{{
+		"document", operationDataMap["document"],
+	}}
+
+	//Realizar la query
+	collection := c.db.connection.Database("centralBank").Collection("clients")
+
+	_, err := collection.DeleteOne(context.TODO(), filter)
+
+	//Establecer la respueta
+	if err != nil{
+		log.Fatal(err)
+		*response = false
+		return nil
+	}
+
+	*response = true
+	return nil
+}
+
+//Método remoto para obtener el monto de la cuenta de un usuario
+func (c *Central) GetBalance(operationData string, response *int) error {
+
+	//Decodificar el argumento de información de la operación en formato JSON
+	operationDataMap := c.decodeOperationData(operationData)
+
+	//Establecer la condición de filtro
+	filter := bson.D{{
+		"document", operationDataMap["document"],
+	}}
+
+	//Realizar la query
+	collection := c.db.connection.Database("centralBank").Collection("clients")
+	var queryResult client
+	err := collection.FindOne(context.TODO(), filter).Decode(&queryResult)
+	if err != nil {
+		*response = 0
+		return nil
+	}
+	//Establecer la respueta
+	*response = queryResult.Mount
 
 	return nil
 
 }
 
+//Método para inciar el servidor
 func (c *Central) StartServer(port string)  {
 
 	//Instanciar el servidor de rpc
