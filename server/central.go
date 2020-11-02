@@ -12,10 +12,12 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Central struct {
@@ -88,11 +90,6 @@ func (c *Central) userOptions()  {
 			c.registerNewSubsidiary()
 			break
 
-		case 2:
-			var test *bool
-			c.DeleteAccount("{\"document\": \"1000603860\"}", test)
-			break
-
 		}
 	}
 
@@ -112,7 +109,127 @@ func (c *Central) decodeOperationData(operationData string) map[string]string {
 
 }
 
-//Método para eliminar una cuenta
+//Método para retirar dinero
+func (c* Central) AddMoney(operationData string, response *bool) error {
+
+	//Obtener la información de la operación
+	operationDataMap := c.decodeOperationData(operationData)
+
+	//Enstablecer el cirterio de filtro
+	filter := bson.D{{
+		"document", operationDataMap["document"],
+	}}
+
+	//Realizar la query para obtener el monto actual
+	collection := c.db.connection.Database("centralBank").Collection("clients")
+	var queryResult client
+	err := collection.FindOne(context.TODO(), filter).Decode(&queryResult)
+	if err != nil {
+		*response = false
+		return nil
+	}
+	//Establecer la respueta
+	currentBalance := queryResult.Mount
+
+	mountToAdd, _ := strconv.Atoi(operationDataMap["mountToAdd"])
+	newBalance := currentBalance - mountToAdd
+
+	//Establecer los nuevos datos
+	update := bson.D{primitive.E{Key: "$set", Value: bson.D{
+		primitive.E{Key: "mount", Value: newBalance},
+	}}}
+
+	t := &client{}
+
+	err = collection.FindOneAndUpdate(context.TODO(), filter, update).Decode(t)
+	if err != nil {
+		log.Println(err)
+		*response = false
+		return nil
+	}
+
+	*response = true
+	return nil
+
+}
+
+//Método remoto para realziar una consignación
+func (c* Central) AddMoney(operationData string, response *bool) error {
+
+	//Obtener la información de la operación
+	operationDataMap := c.decodeOperationData(operationData)
+
+	//Enstablecer el cirterio de filtro
+	filter := bson.D{{
+		"document", operationDataMap["document"],
+	}}
+
+	//Realizar la query para obtener el monto actual
+	collection := c.db.connection.Database("centralBank").Collection("clients")
+	var queryResult client
+	err := collection.FindOne(context.TODO(), filter).Decode(&queryResult)
+	if err != nil {
+		*response = false
+		return nil
+	}
+	//Establecer la respueta
+	currentBalance := queryResult.Mount
+
+	mountToAdd, _ := strconv.Atoi(operationDataMap["mountToAdd"])
+	newBalance := currentBalance + mountToAdd
+
+	//Establecer los nuevos datos
+	update := bson.D{primitive.E{Key: "$set", Value: bson.D{
+		primitive.E{Key: "mount", Value: newBalance},
+	}}}
+
+	t := &client{}
+
+	err = collection.FindOneAndUpdate(context.TODO(), filter, update).Decode(t)
+	if err != nil {
+		log.Println(err)
+		*response = false
+		return nil
+	}
+
+	*response = true
+	return nil
+
+}
+
+//Método remoto para modificar una cuenta
+func (c *Central) ModifyAccount(operationData string, response *bool) error{
+
+	//Obtener la información de la operación
+	operationDataMap := c.decodeOperationData(operationData)
+
+	//Establecer el cirterio de filtro
+	filter := bson.D{{
+		"document", operationDataMap["document"],
+	}}
+
+	//Establecer los nuevos datos
+	update := bson.D{primitive.E{Key: "$set", Value: bson.D{
+		primitive.E{Key: "document", Value: operationDataMap["newDocument"]},
+	}}}
+
+	t := &client{}
+
+	//Realizar la modificación a la base de datos
+	collection := c.db.connection.Database("centralBank").Collection("clients")
+	err := collection.FindOneAndUpdate(context.TODO(), filter, update).Decode(t)
+	if err != nil {
+		log.Println(err)
+		*response = false
+		return nil
+	}
+
+	*response = true
+	return nil
+
+}
+
+//Método remoto para eliminar una cuenta
 func (c *Central) DeleteAccount(operationData string, response *bool) error {
 
 	operationDataMap := c.decodeOperationData(operationData)
@@ -128,7 +245,7 @@ func (c *Central) DeleteAccount(operationData string, response *bool) error {
 
 	//Establecer la respueta
 	if err != nil{
-		log.Fatal(err)
+		log.Println(err)
 		*response = false
 		return nil
 	}
