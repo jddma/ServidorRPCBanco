@@ -109,9 +109,33 @@ func (c *Central) decodeOperationData(operationData string) map[string]string {
 
 }
 
-//Método para retirar dinero
-func (c* Central) AddMoney(operationData string, response *bool) error {
+//Método remoto para validar una sucursal que empieza operaciones
+func (c *Central) ValidateBranch(token string, response *bool) error {
 
+	//Establecer la condición de filtro
+	filter := bson.D{{
+		"token", token,
+	}}
+
+	//Realizar la query
+	collection := c.db.connection.Database("centralBank").Collection("branches")
+	var queryResult Branch
+	err := collection.FindOne(context.TODO(), filter).Decode(&queryResult)
+	if err != nil {
+		*response = false
+		return nil
+	}
+
+	*response = true
+	return nil
+
+}
+
+//Método para retirar dinero
+func (c* Central) Withdrawals(operationDataArgs string, response *bool) error {
+
+
+	var operationData string = string(operationDataArgs)
 	//Obtener la información de la operación
 	operationDataMap := c.decodeOperationData(operationData)
 
@@ -131,7 +155,7 @@ func (c* Central) AddMoney(operationData string, response *bool) error {
 	//Establecer la respueta
 	currentBalance := queryResult.Mount
 
-	mountToAdd, _ := strconv.Atoi(operationDataMap["mountToAdd"])
+	mountToAdd, _ := strconv.Atoi(operationDataMap["mountToRemove"])
 	newBalance := currentBalance - mountToAdd
 
 	//Establecer los nuevos datos
