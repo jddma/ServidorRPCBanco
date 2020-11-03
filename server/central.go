@@ -90,6 +90,10 @@ func (c *Central) userOptions()  {
 			c.registerNewSubsidiary()
 			break
 
+		case 2:
+			c.AddAccount("{\"document\": \"1000603860\"}", nil)
+			break
+
 		}
 	}
 
@@ -106,6 +110,23 @@ func (c *Central) decodeOperationData(operationData string) map[string]string {
 	}
 
 	return result
+
+}
+
+//Método remoto para agregar una cuenta a la base de datos
+func (c *Central) AddAccount(operationData string, response *bool) error {
+
+	operationDataMap := c.decodeOperationData(operationData)
+
+	collection := c.db.connection.Database("centralBank").Collection("clients")
+	_, err := collection.InsertOne(context.TODO(), operationDataMap)
+	if err != nil {
+		*response = false
+		log.Println(err)
+	}
+
+	*response = true
+	return nil
 
 }
 
