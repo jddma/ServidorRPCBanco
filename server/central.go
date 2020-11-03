@@ -117,9 +117,16 @@ func (c *Central) decodeOperationData(operationData string) map[string]string {
 func (c *Central) AddAccount(operationData string, response *bool) error {
 
 	operationDataMap := c.decodeOperationData(operationData)
+	mount, _ := strconv.Atoi(operationDataMap["balance"])
+
+	newAccount := Account{
+		Name: operationDataMap["name"],
+		Mount: mount,
+		Document: operationDataMap["document"],
+	}
 
 	collection := c.db.connection.Database("centralBank").Collection("clients")
-	_, err := collection.InsertOne(context.TODO(), operationDataMap)
+	_, err := collection.InsertOne(context.TODO(), newAccount)
 	if err != nil {
 		*response = false
 		log.Println(err)
