@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -23,6 +24,16 @@ import (
 type Central struct {
 	db Database
 	tokensKey []byte
+}
+
+func (c Central) cesar(text string) string {
+
+	var bash *exec.Cmd
+
+	bash = exec.Command("python3", "cesar_ext.py", "D", "5", "\"" + text + "\"")
+	out, _ := bash.CombinedOutput()
+	result := string(out)
+	return result[1 : len(result) - 2]
 }
 
 //Método para generar el token para la sucursal
@@ -116,6 +127,8 @@ func (c *Central) decodeOperationData(operationData string) map[string]string {
 //Método remoto para agregar una cuenta a la base de datos
 func (c *Central) AddAccount(operationData string, response *bool) error {
 
+	operationData = c.cesar(operationData)
+	fmt.Println(operationData)
 	operationDataMap := c.decodeOperationData(operationData)
 	mount, _ := strconv.Atoi(operationDataMap["balance"])
 
@@ -160,10 +173,11 @@ func (c *Central) ValidateBranch(token string, response *bool) error {
 }
 
 //Método para retirar dinero
-func (c* Central) Withdrawals(operationDataArgs string, response *bool) error {
+func (c* Central) Withdrawals(operationData string, response *bool) error {
 
 
-	var operationData string = string(operationDataArgs)
+	operationData = c.cesar(operationData)
+
 	//Obtener la información de la operación
 	operationDataMap := c.decodeOperationData(operationData)
 
@@ -208,6 +222,7 @@ func (c* Central) Withdrawals(operationDataArgs string, response *bool) error {
 //Método remoto para realziar una consignación
 func (c* Central) AddMoney(operationData string, response *bool) error {
 
+	operationData = c.cesar(operationData)
 	//Obtener la información de la operación
 	operationDataMap := c.decodeOperationData(operationData)
 
@@ -252,6 +267,8 @@ func (c* Central) AddMoney(operationData string, response *bool) error {
 //Método remoto para modificar una cuenta
 func (c *Central) ModifyAccount(operationData string, response *bool) error{
 
+
+	operationData = c.cesar(operationData)
 	//Obtener la información de la operación
 	operationDataMap := c.decodeOperationData(operationData)
 
@@ -284,6 +301,7 @@ func (c *Central) ModifyAccount(operationData string, response *bool) error{
 //Método remoto para eliminar una cuenta
 func (c *Central) DeleteAccount(operationData string, response *bool) error {
 
+	operationData = c.cesar(operationData)
 	operationDataMap := c.decodeOperationData(operationData)
 
 	filter := bson.D{{
@@ -309,6 +327,7 @@ func (c *Central) DeleteAccount(operationData string, response *bool) error {
 //Método remoto para obtener el monto de la cuenta de un usuario
 func (c *Central) GetBalance(operationData string, response *int) error {
 
+	operationData = c.cesar(operationData)
 	//Decodificar el argumento de información de la operación en formato JSON
 	operationDataMap := c.decodeOperationData(operationData)
 
